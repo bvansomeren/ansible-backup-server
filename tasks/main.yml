@@ -1,0 +1,34 @@
+---
+# tasks file for bvansomeren.backup-server
+
+- name: ensure packages that are required for backups
+  package: name=rsync state=present
+
+- name: ensure group accounts
+  group: name="{{ item.value.customer }}" state=present
+  with_dict: "{{ backup_accounts }}"
+
+- name: ensure backup accounts
+  user: name="{{ item.value.username }}" generate_ssh_key=yes state=present group="{{ item.value.customer }}" home="/{{ backup_home }}/{{ item.value.username }}"
+  with_dict: "{{ backup_accounts }}"
+
+- name: ensure local folder
+  file: path="/{{ backup_local_tmp }}/backup-server/keys/" state=directory
+
+- name: fetch ssh_pub keys for backup accounts
+  fetch: src="/{{ backup_home }}/{{ item.value.username }}/.ssh/id_rsa.pub" dest="/{{ backup_local_tmp }}/backup-server/keys/{{ item.value.username }}_id_rsa.pub" flat=yes
+  with_dict: "{{ backup_accounts }}"
+
+- name: ensure backup folders
+  file: path="~/{{ item.key }}" state=directory mode=0770
+  with_dict: "{{ backup_accounts }}"
+
+- name: create cronjobs for backup accounts
+  cron: name="Backup for {{ item.key }}" user="{{ item.value.username }}" special_time=hourly job="{{ backup_rsync_binary }} -az {{ item.value.username }}@{{item.key }}:{{ item.value.target_folder }} ~/{{ item.key }}/"
+  with_dict: "{{ backup_accounts }}"
+
+- name: ensure server keys are in known_hosts for users
+  known_hosts: key="{{ lookup('pipe', 'ssh-keyscan -t rsa {{ item.key }}') }}" state=present path="/{{ backup_home }}/{{ item.value.username }}/.ssh/known_hosts" name="{{ item.key }}"
+  with_dict: "{{ backup_accounts }}"
+
+

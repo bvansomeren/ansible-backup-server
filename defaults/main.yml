@@ -1,0 +1,6 @@
+---
+# defaults file for bvansomeren.backup-server
+backup_home: "home"
+backup_rsync_binary: "/usr/bin/rsync"
+backup_local_tmp: "/tmp/stuff/"
+# TODO: Make platform independant
